@@ -1,8 +1,9 @@
 variable aws_region {
   description = "This is aws region"
-  default     = "us-east-1"
+  default     = "us-west-2"
   type        = string
 }
+
 
 variable aws_instance_type {
   description = "This is aws ec2 type "
@@ -15,3 +16,21 @@ variable aws_key {
   default     = "my_ec2_key"
   type        = string
 }
+
+variable qa_server {
+  description = "if qa server can be created"
+  default     = false
+  type        = bool
+}
+
+variable uat_server {
+  description = "if qa server can be created"
+  default     = false
+  type        = bool
+}
+variable nexus_server {
+description = "if nexus server can be created"
+  default     = false
+  type        = bool
+}
+
