@@ -6,22 +6,6 @@ provider "aws" {
 
 # create default vpc if one does not exit
 resource "aws_default_vpc" "default_vpc" {
-
-  tags    = {
-    Name  = "utrains default vpc"
-  }
-}
-
-# use data source to get all avalablility zones in region
-data "aws_availability_zones" "available_zones" {}
-
-# create default subnet if one does not exit
-resource "aws_default_subnet" "default_az1" {
-  availability_zone = data.aws_availability_zones.available_zones.names[0]
-
-  tags   = {
-    Name = "utrains default subnet"
-  }
 }
 
 # create security group for the ec2 instance
@@ -76,37 +60,21 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
-# Generates a secure private key and encodes it as PEM
-resource "tls_private_key" "nexus_key" {
-  algorithm = "RSA"
-  rsa_bits  = 4096
-}
-# Create the Key Pair
-resource "aws_key_pair" "nexus_key" {
-  key_name   = "nexus_key_pair"  
-  public_key = tls_private_key.nexus_key.public_key_openssh
-}
-# Save file
-resource "local_file" "ssh_key" {
-  filename = "${aws_key_pair.nexus_key.key_name}.pem"
-  content  = tls_private_key.nexus_key.private_key_pem
-}
-
 # launch the ec2 instance and install nexus
 resource "aws_instance" "ec2_instance" {
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = var.aws_instance_type
-  subnet_id              = aws_default_subnet.default_az1.id
   vpc_security_group_ids = [aws_security_group.nexus_ec2_security_group.id]
   key_name               = aws_key_pair.nexus_key.key_name
   # user_data            = file("install-nexus.sh")
 
   tags = {
-    Name = "utrains Nexus Server and ssh security group"
+    Name = "Nexus-server"
+    owner = "Hermann90"
   }
 }
 
-# an empty resource block
+# an empty resource block : Here we can connect to the server to run some bash commands that will allow us to install nexus.
 resource "null_resource" "name" {
 
   # ssh into the ec2 instance 
@@ -117,13 +85,8 @@ resource "null_resource" "name" {
     host        = aws_instance.ec2_instance.public_ip
   }
 
-  # copy the install-nexus.sh file from your computer to the ec2 instance 
-  /* provisioner "file" {
-    source      = "install-nexus.sh"
-    destination = "/tmp/install-nexus.sh"
-  } */
 
-  # set permissions and run the install_nexus.sh file
+  # set permissions and run the  file
   provisioner "remote-exec" {
     inline = [
       "sudo yum update -y",
@@ -148,19 +111,4 @@ resource "null_resource" "name" {
 
   # wait for ec2 to be created
   depends_on = [aws_instance.ec2_instance]
-}
-
-# print the url of the nexus server
-output "nexus_server_url" {
-    value = join ("", ["http://", aws_instance.ec2_instance.public_dns, ":", "8081"])
-}
-
-# print the ssh command to connect to the nexus server
-output "ssh_connection" {
-    value = join ("", ["ssh -i nexus_key_pair.pem ec2-user@", aws_instance.ec2_instance.public_dns])
-}
-
-# print the path to get the nexus admin password
-output "nexus_admin_password" {
-    value = "sudo cat ~/sonatype-work/nexus3/admin.password"
 }
